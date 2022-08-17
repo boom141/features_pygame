@@ -1,4 +1,5 @@
 import pygame ,os, math, sys, random
+from weapons import Weapon_List
 
 pygame.init()
 
@@ -22,21 +23,22 @@ class Current_Weapon:
         return sprite_image, sprite_image_copy, sprite_image_rect
 
 class Default_Bullet:
-    def __ini__(self):
-        pass
-    def Bullet_Attribute(self, muzzle_pos, direction, duration, angle):
-        return [[muzzle_pos[0],muzzle_pos[1]],[direction[0],direction[1]],random.randint(duration[0],duration[1]),angle]
+    def __init__(self,weapon_list):
+        self.weapon_list = weapon_list
+
+    def Bullet_Attribute(self, muzzle_pos, direction, duration, angle, current_weapon):
+        return [[muzzle_pos[0],muzzle_pos[1]],[direction[0],direction[1]],random.randint(duration[0],duration[1]),angle,self.weapon_list[current_weapon]['bullet_speed']]
     
     def Deploy_Bullet(self,surface,bullets,bounce,GRID_SIZE,tile_map,duration):
         for bullet in bullets:
-            bullet[0][0] += bullet[1][0]
+            bullet[0][0] += bullet[1][0] * bullet[4]
             loc_str = f'{int(bullet[0][0] / GRID_SIZE)}:{int(bullet[0][1] / GRID_SIZE)}'
             if bounce > 0:
                 if loc_str in tile_map:
                     bullet[1][0] = -bounce * bullet[1][0]
                     bullet[1][1] *= 0.95
                     bullet[0][0] += bullet[1][0] * 2
-            bullet[0][1] += bullet[1][1]
+            bullet[0][1] += bullet[1][1] * bullet[4]
             loc_str = f'{int(bullet[0][0] / GRID_SIZE)}:{int(bullet[0][1] / GRID_SIZE)}'
             if bounce > 0: 
                 if loc_str in tile_map:
@@ -53,9 +55,12 @@ class Default_Bullet:
 sprite_image_crosser = pygame.image.load(os.path.join('asset', 'crosser.png'))
 sprite_crosser_object = sprite_image_crosser.copy()
 
+current_weapon = 'gun_ak'
 facing = 'left'
+
 bullet_list = []
 tile_map = {}
+
 
 while True:
     Window.fill((40,40,40))
@@ -86,6 +91,8 @@ while True:
         facing = 'right'
     else:
         facing = 'left'
+
+    
     
     sprite_object = pygame.transform.rotate(sprite_image_gun, -angle).convert_alpha()
     sprite_rect = sprite_object.get_rect(center=(sprite_x,sprite_y)) #reposition of image
@@ -93,9 +100,12 @@ while True:
     Window.blit(sprite_object,sprite_rect)
     
     if pygame.mouse.get_pressed()[0]:
-        bullet_list.append(Default_Bullet().Bullet_Attribute([200,200],[direction_x,direction_y],[4,6],angle))
+        for i in range(1):
+         bullet_list.append(Default_Bullet(Weapon_List).Bullet_Attribute([200,193], 
+         [direction_x,direction_y], [4,6], angle, current_weapon))
 
-    Default_Bullet().Deploy_Bullet(Window,bullet_list,0,GRID_SIZE,tile_map,0.035)
+    Default_Bullet(Weapon_List).Deploy_Bullet(Window,bullet_list,0,GRID_SIZE,tile_map,0.035)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
