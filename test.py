@@ -1,107 +1,209 @@
-import pygame ,os, math, sys, random
-from weapons import Weapon_List
+import pygame, os, sys, time
+from pygame.locals import *
+pygame.init() # initiates pygam\
 
-pygame.init()
+clock = pygame.time.Clock()
 
-WIDTH ,HEIGHT = 400,400
-Display = pygame.display.set_mode((WIDTH, HEIGHT))
-Window = pygame.Surface((WIDTH,HEIGHT))
-pygame.display.set_caption('Aim and shoot Test')
-CLOCK = pygame.time.Clock()
-GRID_SIZE = 80
+pygame.display.set_caption('Pygame Platformer')
 
-bullet_img = pygame.image.load(os.path.join('asset','Laser.png'))
-bullet_img_copy = bullet_img.copy()
-bullet_img_copy = pygame.transform.scale(bullet_img,(40,30))
-bullet_img_copy.set_colorkey((0,0,0))
+WINDOW_SIZE = (600,400)
 
-class Current_Weapon(pygame.sprite.Sprite):
-	def __init__(self, surface):
-		pygame.sprite.Sprite.__init__(self)
-		self.surface = surface
+screen = pygame.display.set_mode(WINDOW_SIZE,0,32) # initiate the window
 
-	def Update(self, weapon_name, weapon_position, facing):
-		sprite_image = pygame.image.load(os.path.join('asset', f'{weapon_name}{facing}.png')) #original image
-		sprite_object =  sprite_image.copy() # reserve for containing the upadated transform in image / also the one that we need to blit
-		sprite_rect = sprite_object.get_rect(center=(weapon_position[0],weapon_position[0])) # declaring values for the center position of the image
-		mouse_position = pygame.mouse.get_pos()
-		sprite_center = sprite_rect.center
-		distance_x = mouse_position[0] - sprite_center[0]
-		distance_y = mouse_position[1] - sprite_center[1]
-		angle = math.degrees(math.atan2(distance_y,distance_x))
+display = pygame.Surface((300,200)) # used as the surface for rendering, which is scaled
 
-		self.sprite_object = pygame.transform.rotate(sprite_image, -angle).convert_alpha()
-		self.sprite_rect = self.sprite_object.get_rect(center=(sprite_center[0],sprite_center[1])) #reposition of image
+last_time = time.time()
 
-	def Draw(self):
-		self.surface.blit(self.sprite_object,self.sprite_rect)
+left, right, jump = False, False, False
 
-class Bullet(pygame.sprite.Sprite):
-	def __init__(self, weapon_name, weapon_list, position):
-		pygame.sprite.Sprite.__init__(self)
-		self.image = bullet_img_copy
-		self.rect = self.image.get_rect()
-		self.weapon_list = weapon_list
-		self.weapon_name = weapon_name
-		self.position = position
-		self.mouse_position = pygame.mouse.get_pos()
-		self.distance_x = self.mouse_position[0] - self.position[0]
-		self.distance_y = self.mouse_position[1] - self.position[1]
-		self.direction_x = math.cos(math.atan2(self.distance_y,self.distance_x))
-		self.direction_y = math.sin(math.atan2(self.distance_y,self.distance_x))
-	
-	def update(self):
-		self.position[0] += self.direction_x
-		self.position[1] += self.direction_y
-		self.rect.x = self.position[0]
-		self.rect.y = self.position[1]
-		if self.rect.right < 0 or self.rect.left > WIDTH:
-			self.kill()
+vertical_momentum = 0
+jump_cooldown = 0
 
+scroll = [0,0]
 
-sprite_image_crosser = pygame.image.load(os.path.join('asset', 'crosser.png'))
-sprite_crosser_object = sprite_image_crosser.copy()
+dirt_img = pygame.image.load(os.path.join('asset', 'tile1.png')).convert()
+dirt_img.set_colorkey((0,0,0))
 
-facing = 'left'
+class Player(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(os.path.join('asset/idle', 'player_idle_right0.png')).convert()
+        self.image.set_colorkey((0,0,0))
+        self.image_copy = self.image.copy()
+        self.rect = self.image_copy.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.animation = 0
+        self.vertical_momentum = 0
 
-bullet_list = []
-tile_map = {}
+    def collision_test(self):
+        hit_list = []
+        for tile in map.tiles:
+            if tile[1].colliderect(self.rect):
+                hit_list.append(tile[1])
+        return hit_list
 
-bullet_list = pygame.sprite.Group()
+    def move(self,direction):
+        self.rect.x += direction[1]
+        hit_list = self.collision_test()
+        for tile in hit_list:
+            if direction[1] > 0:
+                self.rect.right = tile.left
+            elif direction[1] < 0:
+                self.rect.left = tile.right
+        self.rect.y += direction[2]
+        hit_list = self.collision_test()
+        for tile in hit_list:
+            if direction[2] > 0:
+                self.rect.bottom = tile.top
+            elif direction[2] < 0:
+                self.rect.top = tile.bottom
+        
+        self.update(direction[0])
+    
+    def update(self,status):
+        print(status)
 
-current_weapon = Current_Weapon(Window)
-while True:
-	Window.fill((40,40,40))
-	CLOCK.tick(60)
-	pygame.mouse.set_visible(False)
-	
-	horizontal_grid_size = (pygame.mouse.get_pos()[0]//30)
-	if horizontal_grid_size < 6:
-		facing = 'right'
-	else:
-		facing = 'left'
+    def draw(self,surface):
+        surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
 
 
-	current_weapon.Update('gun_ak_', [200,200], facing)
-	current_weapon.Draw()
+class Map(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.tiles = []
+        self.tile_map = {}
+    
+    def setup(self):
+        for i in range(600//16):
+           self.tile_map[f'{i}:180'] = 0
+           image = pygame.image.load(os.path.join('asset', 'tile1.png'))
+           image.set_colorkey((0,0,0))
+           rect = image.get_rect()
+           rect.x = i*16
+           rect.y = 180
+           self.tiles.append([image,rect])
+   
+    def draw(self,surface):
+        for tile in self.tiles:
+            surface.blit(tile[0],(tile[1].x - int(scroll[0]),tile[1].y-int(scroll[1])))
 
-	sprite_crosser_object = pygame.transform.scale(sprite_image_crosser,(30,30)).convert_alpha()
-	sprite_crosser_rect = sprite_crosser_object.get_rect()
+class Trees(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(os.path.join('asset/tree', 'tree0.png'))
+        self.image_copy = self.image.copy()
+        self.rect = self.image_copy.get_rect()
+        self.rect.x = x
+        self.rect.bottom = y
+        self.animation = 0
+    
+    def update(self,dt):
+        if self.animation >= 8:
+            self.animation =0
+        self.animation += 0.2 * dt
+        if self.animation <= 8:
+            self.image = pygame.image.load(os.path.join('asset/tree', f'tree{int(self.animation)}.png')).convert_alpha()
+            self.image.set_colorkey((0,0,0))
+            
+    def draw(self,surface):
+        surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y - int(scroll[1])))
 
-	Window.blit(sprite_crosser_object,(pygame.mouse.get_pos()[0] - sprite_crosser_rect.centerx,pygame.mouse.get_pos()[1] - sprite_crosser_rect.centery))
+class Droplet(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(os.path.join('asset/droplet', 'water_droplet0.png'))
+        self.image_copy = self.image.copy()
+        self.rect = self.image_copy.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.animation = 0
+    
+    def update(self,dt):
+        if self.animation >= 7:
+            self.animation = 0
+        self.animation += 0.2 * dt
+        if self.animation <= 7:
+            self.image = pygame.image.load(os.path.join('asset/droplet', f'water_droplet{int(self.animation)}.png')).convert_alpha()
+            self.image.set_colorkey((0,0,0))
+    
+    def draw(self,surface):
+        surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y - int(scroll[1])))
 
-	if pygame.mouse.get_pressed()[0]:
-		bullet = Bullet('gun_ak', Weapon_List, [200,200])
-		bullet_list.add(bullet)
-		print(bullet_list)
-	
-	bullet_list.update()
-	bullet_list.draw(Window)
 
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			pygame.quit()
-			sys.exit()
+map = Map()
+map.setup()
+player = Player(125,80)
+trees, droplets = [], []
 
-	Display.blit(Window,(0,0))
-	pygame.display.update()
+location1 = [[30,180],[250, 180]]
+location2 = [[200,140],[400,140]]
+
+for position in location1:
+    tree = Trees(position[0], position[1])
+    trees.append(tree)
+
+for position in location2:
+    droplet = Droplet(position[0], position[1])
+    droplets.append(droplet)
+
+
+while True: # game loop
+    dt = time.time() - last_time
+    dt *= 60
+    last_time = time.time()
+    display.fill((25,25,25)) 
+
+#camera ----------------------------------------------------------------#
+    scroll[0] += (player.rect.x-scroll[0]-128)/20
+    scroll[1] += (player.rect.y-scroll[1]-115)/20
+    
+    player_movement = ['idle',0,0]
+    if left:
+        player_movement[1] -= 3
+        player_movement[0] = 'left'
+    if right:
+         player_movement[1] += 3
+         player_movement[0] = 'right'
+    player_movement[2] += vertical_momentum
+    vertical_momentum += 0.2
+    if vertical_momentum > 3:
+        vertical_momentum = 3
+    if jump_cooldown > 0:
+        jump_cooldown -= 1
+
+    for tree in trees:
+        tree.update(dt)
+        tree.draw(display)
+    for droplet in droplets:
+        droplet.update(dt)
+        droplet.draw(display)
+
+    map.draw(display)
+    player.move(player_movement)
+    player.draw(display)
+    
+    for event in pygame.event.get(): # event loop
+        if event.type == QUIT:
+            pygame.quit()
+            sys.exit()
+
+        if event.type == KEYDOWN:
+            if event.key == K_d:
+                right = True
+            if event.key == K_a:
+                left = True
+            if event.key == K_SPACE:
+                if jump_cooldown == 0:
+                    jump_cooldown = 60 #60 for single jump 30 for multiple/double jumps
+                    vertical_momentum = -5
+
+        if event.type == KEYUP:
+            if event.key == K_d:
+               right = False
+            if event.key == K_a:
+               left = False
+        
+    screen.blit(pygame.transform.scale(display,WINDOW_SIZE),(0,0))
+    pygame.display.update()
+    clock.tick(60)
