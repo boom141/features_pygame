@@ -2,6 +2,9 @@ import pygame, os, sys, time
 from pygame.locals import *
 pygame.init() # initiates pygam\
 
+
+
+
 clock = pygame.time.Clock()
 
 pygame.display.set_caption('Pygame Platformer')
@@ -35,6 +38,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.y = y
         self.animation = 0
         self.vertical_momentum = 0
+        self.facing = 'right'
 
     def collision_test(self):
         hit_list = []
@@ -62,7 +66,11 @@ class Player(pygame.sprite.Sprite):
         self.update(direction[0])
     
     def update(self,status):
-        print(status)
+        if status == 'right':
+            self.facing = 'right'
+        if status == 'left':
+            self.facing = 'left'
+        print(f'{status}:{self.facing}')
 
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
@@ -149,6 +157,7 @@ for position in location2:
 
 
 while True: # game loop
+#framerate independence -------------------------------------------------#
     dt = time.time() - last_time
     dt *= 60
     last_time = time.time()
