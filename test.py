@@ -1,4 +1,6 @@
 import pygame, os, sys, time
+from load_sprite import animation_sprites
+
 from pygame.locals import *
 pygame.init() # initiates pygam\
 
@@ -47,7 +49,7 @@ class Player(pygame.sprite.Sprite):
                 hit_list.append(tile[1])
         return hit_list
 
-    def move(self,direction):
+    def move(self,direction,dt):
         self.rect.x += direction[1]
         hit_list = self.collision_test()
         for tile in hit_list:
@@ -63,15 +65,21 @@ class Player(pygame.sprite.Sprite):
             elif direction[2] < 0:
                 self.rect.top = tile.bottom
         
-        self.update(direction[0])
+        self.update(direction[0],dt)
     
-    def update(self,status):
+    def update(self,status,dt):
         if status == 'right':
             self.facing = 'right'
         if status == 'left':
             self.facing = 'left'
-        print(f'{status}:{self.facing}')
-
+        if self.animation >= animation_sprites[status]['frames']:
+            self.animation = 0
+        self.animation += 0.185 * dt
+        if self.animation <= animation_sprites[status]['frames']:
+            self.image = pygame.image.load(os.path.join(f'asset/{status}', 
+            f'{animation_sprites[status][self.facing]}{int(self.animation)}.png'))
+            self.image.set_colorkey((0,0,0))
+            
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
 
@@ -189,7 +197,7 @@ while True: # game loop
         droplet.draw(display)
 
     map.draw(display)
-    player.move(player_movement)
+    player.move(player_movement,dt)
     player.draw(display)
     
     for event in pygame.event.get(): # event loop
