@@ -1,5 +1,6 @@
 import pygame, os, sys, time
 from load_sprite import*
+from particles import*
 
 from pygame.locals import *
 pygame.init() # initiates pygam\
@@ -9,6 +10,7 @@ clock = pygame.time.Clock()
 pygame.display.set_caption('Pygame Platformer')
 
 WINDOW_SIZE = (600,400)
+PIXEL_SIZE = 16
 
 screen = pygame.display.set_mode(WINDOW_SIZE,0,32) # initiate the window
 
@@ -25,6 +27,34 @@ scroll = [0,0]
 
 dirt_img = pygame.image.load(os.path.join('asset', 'tile1.png')).convert()
 dirt_img.set_colorkey((0,0,0))
+
+class Play_Particle(pygame.sprite.Sprite):
+	def __init__(self): 
+		pygame.sprite.Sprite.__init__(self)
+		self.particles = []
+		
+	def draw(self,surface,skin_image,physics): #physics:[bounce, seconds, gravity]
+		for particle in self.particles:
+			particle[0][0] += particle[1][0]
+			loc_str = f'{int(particle[0][0] / PIXEL_SIZE)}:{int(particle[0][1] / PIXEL_SIZE)}'
+			if physics[0] > 0:
+				if loc_str in map.tile_map:
+					particle[1][0] = -physics[0] * particle[1][0]
+					particle[1][1] *= 0.95
+					particle[0][0] += particle[1][0] * 2
+			particle[0][1] += particle[1][1]
+			loc_str = f'{int(particle[0][0] / PIXEL_SIZE)}:{int(particle[0][1] / PIXEL_SIZE)}'
+			if physics[0] > 0: 
+				if loc_str in map.tile_map:
+					particle[1][1] = -physics[0] * particle[1][1]
+					particle[1][0] *= 0.95
+					particle[0][1] += particle[1][1] * 2
+			particle[2] -= physics[1]
+			particle[1][1] += physics[2]
+			pygame.draw.circle(surface, (44, 166, 193),
+            [particle[0][0],particle[0][1]], particle[2])
+			if particle[2] <= 0:
+				self.particles.remove(particle)
 
 class Player(pygame.sprite.Sprite):
     def __init__(self,x,y):
@@ -150,6 +180,7 @@ class Droplet(pygame.sprite.Sprite):
 map = Map()
 map.setup()
 player = Player(125,80)
+droplet_particle = Play_Particle()
 trees, droplets = [], []
 
 location1 = [[30,180],[250, 180]]
@@ -192,16 +223,20 @@ while True: # game loop
     for tree in trees:
         tree.update(dt)
         tree.draw(display)
-    for droplet in droplets:
+    for index, droplet in enumerate(droplets):
         droplet.update(dt)
         collected = droplet.player_collision()
         droplet.draw(display)
         if collected != None:
+            for i in range(10):
+                droplet_particle.particles.append(Particle_System().Scatter_Effect(collected.x,
+                collected.y,[5,5]))
             droplets.remove(droplet)
-
+    
     map.draw(display)
     player.move(player_movement,dt)
     player.draw(display)
+    droplet_particle.draw(display, 'default_skin.png', [0.4, 0.1, 0.5])
     
     for event in pygame.event.get(): # event loop
         if event.type == QUIT:
