@@ -1,11 +1,8 @@
 import pygame, os, sys, time
-from load_sprite import animation_sprites
+from load_sprite import*
 
 from pygame.locals import *
 pygame.init() # initiates pygam\
-
-
-
 
 clock = pygame.time.Clock()
 
@@ -65,21 +62,20 @@ class Player(pygame.sprite.Sprite):
             elif direction[2] < 0:
                 self.rect.top = tile.bottom
         
-        self.update(direction[0],dt)
+        self.update(direction,dt)
     
     def update(self,status,dt):
-        if status == 'right':
+        if status[1] > 0:
             self.facing = 'right'
-        if status == 'left':
+        if status[1] < 0:
             self.facing = 'left'
-        if self.animation >= animation_sprites[status]['frames']:
+        if self.animation >= player_sprites[status[0]]['frames']:
             self.animation = 0
         self.animation += 0.185 * dt
-        if self.animation <= animation_sprites[status]['frames']:
-            self.image = pygame.image.load(os.path.join(f'asset/{status}', 
-            f'{animation_sprites[status][self.facing]}{int(self.animation)}.png'))
+        if self.animation <= player_sprites[status[0]]['frames']:
+            self.image = pygame.image.load(os.path.join(f'asset/{status[0]}', 
+            f'{player_sprites[status[0]][self.facing]}{int(self.animation)}.png'))
             self.image.set_colorkey((0,0,0))
-            
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
 
@@ -142,6 +138,10 @@ class Droplet(pygame.sprite.Sprite):
         if self.animation <= 7:
             self.image = pygame.image.load(os.path.join('asset/droplet', f'water_droplet{int(self.animation)}.png')).convert_alpha()
             self.image.set_colorkey((0,0,0))
+   
+    def player_collision(self):
+        if self.rect.colliderect(player.rect):
+            return self.rect
     
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y - int(scroll[1])))
@@ -162,7 +162,7 @@ for position in location1:
 for position in location2:
     droplet = Droplet(position[0], position[1])
     droplets.append(droplet)
-
+ 
 
 while True: # game loop
 #framerate independence -------------------------------------------------#
@@ -178,10 +178,10 @@ while True: # game loop
     player_movement = ['idle',0,0]
     if left:
         player_movement[1] -= 3
-        player_movement[0] = 'left'
+        player_movement[0] = 'walk'
     if right:
          player_movement[1] += 3
-         player_movement[0] = 'right'
+         player_movement[0] = 'walk'
     player_movement[2] += vertical_momentum
     vertical_momentum += 0.2
     if vertical_momentum > 3:
@@ -194,7 +194,10 @@ while True: # game loop
         tree.draw(display)
     for droplet in droplets:
         droplet.update(dt)
+        collected = droplet.player_collision()
         droplet.draw(display)
+        if collected != None:
+            droplets.remove(droplet)
 
     map.draw(display)
     player.move(player_movement,dt)
