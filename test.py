@@ -229,8 +229,8 @@ while True: # game loop
         droplet.draw(display)
         if collected != None:
             for i in range(10):
-                droplet_particle.particles.append(Particle_System().Scatter_Effect(collected.x,
-                collected.y,[5,5]))
+                droplet_particle.particles.append(Particle_System().Scatter_Effect(collected.x - int(scroll[0]),
+                collected.y - int(scroll[1]),[5,5]))
             droplets.remove(droplet)
     
     map.draw(display)
