@@ -36,14 +36,14 @@ class Play_Particle(pygame.sprite.Sprite):
 	def draw(self,surface,skin_image,physics): #physics:[bounce, seconds, gravity]
 		for particle in self.particles:
 			particle[0][0] += particle[1][0]
-			loc_str = f'{int(particle[0][0] / PIXEL_SIZE)}:{int(particle[0][1] / PIXEL_SIZE)}'
+			loc_str = f'{int(particle[0][0] // PIXEL_SIZE)}:{int(particle[0][1] // PIXEL_SIZE)}'
 			if physics[0] > 0:
 				if loc_str in map.tile_map:
 					particle[1][0] = -physics[0] * particle[1][0]
 					particle[1][1] *= 0.95
 					particle[0][0] += particle[1][0] * 2
 			particle[0][1] += particle[1][1]
-			loc_str = f'{int(particle[0][0] / PIXEL_SIZE)}:{int(particle[0][1] / PIXEL_SIZE)}'
+			loc_str = f'{int(particle[0][0] // PIXEL_SIZE)}:{int(particle[0][1] // PIXEL_SIZE)}'
 			if physics[0] > 0: 
 				if loc_str in map.tile_map:
 					particle[1][1] = -physics[0] * particle[1][1]
@@ -66,7 +66,6 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.animation = 0
-        self.vertical_momentum = 0
         self.facing = 'right'
 
     def collision_test(self):
@@ -106,9 +105,51 @@ class Player(pygame.sprite.Sprite):
             self.image = pygame.image.load(os.path.join(f'asset/{status[0]}', 
             f'{player_sprites[status[0]][self.facing]}{int(self.animation)}.png'))
             self.image.set_colorkey((0,0,0))
+   
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(os.path.join('asset/idle', 'player_idle_right0.png')).convert()
+        self.image.set_colorkey((0,0,0))
+        self.image_copy = self.image.copy()
+        self.rect = self.image_copy.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.animation = 0
+        self.vertical_momentum = 0
+        self.facing = 'right'
+
+    def collision_test(self):
+        hit_list = []
+        for tile in map.tiles:
+            if tile[1].colliderect(self.rect):
+                hit_list.append(tile[1])
+        return hit_list
+    
+    def move(self,dt):
+        direction = [0,0] 
+        direction[1] += self.vertical_momentum
+        self.vertical_momentum += 0.2
+        if self.vertical_momentum > 3:
+            self.vertical_momentum = 3
+        
+        if self.vertical_momentum == 3:
+            direction[0] += 2
+
+        self.rect.x += direction[0]
+        self.rect.y += direction[1]
+        hit_list = self.collision_test()
+        for tile in hit_list:
+            if direction[1] > 0:
+                self.rect.bottom = tile.top
+            elif direction[1] < 0:
+                self.rect.top = tile.bottom
+
+    def draw(self,surface):
+        surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
 
 class Map(pygame.sprite.Sprite):
     def __init__(self):
@@ -180,19 +221,21 @@ class Droplet(pygame.sprite.Sprite):
 map = Map()
 map.setup()
 player = Player(125,80)
+enemy = Enemy(200,120)
 droplet_particle = Play_Particle()
-trees, droplets = [], []
+trees = pygame.sprite.Group()
+droplets = pygame.sprite.Group()
 
 location1 = [[30,180],[250, 180]]
 location2 = [[200,140],[400,140]]
 
 for position in location1:
     tree = Trees(position[0], position[1])
-    trees.append(tree)
+    trees.add(tree)
 
 for position in location2:
     droplet = Droplet(position[0], position[1])
-    droplets.append(droplet)
+    droplets.add(droplet)
  
 
 while True: # game loop
@@ -219,6 +262,7 @@ while True: # game loop
         vertical_momentum = 3
     if jump_cooldown > 0:
         jump_cooldown -= 1
+        player_movement[0] = 'jump'
 
     for tree in trees:
         tree.update(dt)
@@ -236,6 +280,8 @@ while True: # game loop
     map.draw(display)
     player.move(player_movement,dt)
     player.draw(display)
+    enemy.move(dt)
+    enemy.draw(display)
     droplet_particle.draw(display, 'default_skin.png', [0.4, 0.1, 0.5])
     
     for event in pygame.event.get(): # event loop
