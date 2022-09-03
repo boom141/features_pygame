@@ -118,7 +118,6 @@ class Map(pygame.sprite.Sprite):
     
     def setup(self):
         for i in range(600//16):
-           self.tile_map[f'{i}:180'] = 0
            image = pygame.image.load(os.path.join('asset', 'tile1.png'))
            image.set_colorkey((0,0,0))
            rect = image.get_rect()
@@ -128,7 +127,8 @@ class Map(pygame.sprite.Sprite):
    
     def draw(self,surface):
         for tile in self.tiles:
-            surface.blit(tile[0],(tile[1].x - int(scroll[0]),tile[1].y-int(scroll[1])))
+            rect = surface.blit(tile[0],(tile[1].x - int(scroll[0]),tile[1].y-int(scroll[1])))
+            self.tile_map[f'{int(rect.x // PIXEL_SIZE)}:{int(rect.y // PIXEL_SIZE)}'] = rect
 
 class Trees(pygame.sprite.Sprite):
     def __init__(self,x,y):
@@ -232,7 +232,7 @@ while True: # game loop
                 droplet_particle.particles.append(Particle_System().Scatter_Effect(collected.x - int(scroll[0]),
                 collected.y - int(scroll[1]),[5,5]))
             droplets.remove(droplet)
-    
+
     map.draw(display)
     player.move(player_movement,dt)
     player.draw(display)
