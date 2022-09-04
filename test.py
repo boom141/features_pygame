@@ -1,4 +1,4 @@
-import pygame, os, sys, time
+import pygame, os, sys, time, random
 from load_sprite import*
 from particles import*
 
@@ -120,8 +120,10 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.y = y
         self.animation = 0
         self.walk_countdown = 0
+        self.idle_countdown = -1
         self.walk_direction = True
         self.vertical_momentum = 0
+        self.status = 'walk'
         self.facing = 'right'
 
     
@@ -133,43 +135,54 @@ class Enemy(pygame.sprite.Sprite):
         return hit_list
     
     def move(self,dt):
-        direction = ['walk',0,0] 
-        direction[2] += self.vertical_momentum 
+        direction = [0,0] 
+        direction[1] += self.vertical_momentum 
         self.vertical_momentum += 0.2
         if self.vertical_momentum > 3:
             self.vertical_momentum = 3
         
-        if self.walk_countdown == 80:
-            self.walk_direction = not self.walk_direction
-            self.walk_countdown = 0
- 
-        if direction[0] == 'walk':
+        if self.idle_countdown > 0:
+            self.idle_countdown -= 1
+
+        if random.randint(1,200) == 1 and self.idle_countdown == 0:
+            self.status = 'idle'
+            self.idle_countdown = 50 
+
+        if self.idle_countdown <= 0:
+            self.status = 'walk'
+            self.idle_countdown = 0
+
+            if self.walk_countdown == 80:
+                self.walk_direction = not self.walk_direction
+                self.walk_countdown = 0
             self.walk_countdown += 0.5
+            
             if self.walk_direction:
-                direction[1] += 2 * dt
+                direction[0] += 2 * dt
                 self.facing = 'right'
             else:
-                direction[1] -= 2 * dt
+                direction[0] -= 2 * dt
                 self.facing = 'left'
 
-        self.rect.x += int(direction[1])
-        self.rect.y += direction[2]
+
+        self.rect.x += int(direction[0])
+        self.rect.y += direction[1]
         hit_list = self.collision_test()
         for tile in hit_list:
-            if direction[2] > 0:
+            if direction[1] > 0:
                 self.rect.bottom = tile.top
-            elif direction[2] < 0:
+            elif direction[1] < 0:
                 self.rect.top = tile.bottom
 
-        self.update(direction,dt)
+        self.update(dt)
 
-    def update(self,status,dt):
-        if self.animation >= enemy_sprites[status[0]]['frames']:
+    def update(self,dt):
+        if self.animation >= enemy_sprites[self.status]['frames']:
             self.animation = 0
         self.animation += 0.185 * dt
-        if self.animation <= enemy_sprites[status[0]]['frames']:
-            self.image = pygame.image.load(os.path.join(f'asset/{status[0]}', 
-            f'{enemy_sprites[status[0]][self.facing]}{int(self.animation)}.png'))
+        if self.animation <= enemy_sprites[self.status]['frames']:
+            self.image = pygame.image.load(os.path.join(f'asset/{self.status}', 
+            f'{enemy_sprites[self.status][self.facing]}{int(self.animation)}.png'))
             self.image.set_colorkey((0,0,0)) 
 
     def draw(self,surface):
