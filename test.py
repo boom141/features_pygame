@@ -183,7 +183,7 @@ class Enemy(pygame.sprite.Sprite):
         if self.animation <= enemy_sprites[self.status]['frames']:
             self.image = pygame.image.load(os.path.join(f'asset/{self.status}', 
             f'{enemy_sprites[self.status][self.facing]}{int(self.animation)}.png'))
-            self.image.set_colorkey((0,0,0)) 
+            self.image.set_colorkey((0,0,0))
 
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
