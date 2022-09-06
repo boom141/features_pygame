@@ -93,7 +93,7 @@ while 1:
 
 	for i in range(400//GRID_SIZE):
 		rect = pygame.draw.rect(Display, 'grey', (i* GRID_SIZE - int(slide[0]), 320, GRID_SIZE, GRID_SIZE))
-		tile_map[f'{int(rect.x//GRID_SIZE)}:{320//GRID_SIZE}'] = rect
+		tile_map[f'{int(rect.x//GRID_SIZE)}:{int(320//GRID_SIZE)}'] = 0
 
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:

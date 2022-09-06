@@ -26,7 +26,7 @@ jump_cooldown = 0
 
 scroll = [0,0]
 
-particle_color = [(255,255,255),(126,196,123),(56,136,156)]
+particle_color = [(255,255,255),(4,174,184),(56,136,156)]
 
 dirt_img = pygame.image.load(os.path.join('asset', 'tile1.png')).convert()
 dirt_img.set_colorkey((0,0,0))
@@ -61,13 +61,19 @@ class Play_Particle(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     def __init__(self,x,y):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load(os.path.join('asset/idle', 'player_idle_right0.png')).convert()
-        self.image.set_colorkey((0,0,0))
-        self.image_copy = self.image.copy()
+        self.player_image = pygame.image.load(os.path.join('asset/idle', 'player_idle_right0.png')).convert()     
+        self.player_image.set_colorkey((0,0,0))
+        self.image_copy = self.player_image.copy()
         self.rect = self.image_copy.get_rect()
         self.rect.x = x
         self.rect.y = y
-        self.animation = 0
+        self.landing_image = pygame.image.load(os.path.join('asset/effects/landing', '0.png')).convert()
+        self.landing_image_copy = self.landing_image.copy()
+        self.landing_image_rect = self.landing_image_copy.get_rect()
+        self.player_animation = 0
+        self.effects_animation = -1
+        self.effects_type = 'landing'
+        self.animate = False
         self.facing = 'right'
 
     def collision_test(self):
@@ -78,6 +84,7 @@ class Player(pygame.sprite.Sprite):
         return hit_list
 
     def move(self,direction,dt):
+        collision_types = {'top':False,'bottom':False,'right':False,'left':False}
         self.rect.x += direction[1] * dt
         hit_list = self.collision_test()
         for tile in hit_list:
@@ -90,26 +97,45 @@ class Player(pygame.sprite.Sprite):
         for tile in hit_list:
             if direction[2] > 0:
                 self.rect.bottom = tile.top
+                collision_types['bottom'] = True
             elif direction[2] < 0:
                 self.rect.top = tile.bottom
         
-        self.update(direction,dt)
+        self.update(direction,collision_types,dt)
     
-    def update(self,status,dt):
+    def update(self,status,collision_types,dt):
         if status[1] > 0:
             self.facing = 'right'
         if status[1] < 0:
             self.facing = 'left'
-        if self.animation >= player_sprites[status[0]]['frames']:
-            self.animation = 0
-        self.animation += 0.185 * dt
-        if self.animation <= player_sprites[status[0]]['frames']:
-            self.image = pygame.image.load(os.path.join(f'asset/{status[0]}', 
-            f'{player_sprites[status[0]][self.facing]}{int(self.animation)}.png'))
-            self.image.set_colorkey((0,0,0))
-   
+        if self.player_animation >= player_sprites[status[0]]['frames']:
+            self.player_animation = 0
+        self.player_animation += 0.185 * dt
+        if self.player_animation <= player_sprites[status[0]]['frames']:
+            self.player_image = pygame.image.load(os.path.join(f'asset/{status[0]}', 
+            f'{player_sprites[status[0]][self.facing]}{int(self.player_animation)}.png'))
+            self.player_image.set_colorkey((0,0,0))
+
+# landing animation ----------------------------------------------------------------#
+        if collision_types['bottom'] == False:
+            self.effects_animation = 0
+       
+        if collision_types['bottom']:
+            self.effects_animation += 0.395 * dt
+            self.animate = True
+            self.effects_type = 'landing'
+
+        if self.effects_animation >= 4:
+            self.effects_animation = 4
+            self.animate = False
+
+        self.landing_image = pygame.image.load(os.path.join(f'asset/effects/{self.effects_type}', f'{int(self.effects_animation)}.png'))
+        self.landing_image_copy = pygame.transform.scale(self.landing_image,(105,30))
+        self.landing_image_copy.set_colorkey((0,0,0))
     def draw(self,surface):
-        surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
+        surface.blit(self.player_image,(self.rect.x - int(scroll[0]),self.rect.y + 3 - int(scroll[1])))
+        if self.animate:
+            surface.blit(self.landing_image_copy,((self.rect.x - 20)- int(scroll[0]),(self.rect.bottom - 15) - int(scroll[1])))
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self,x,y):
@@ -264,7 +290,12 @@ class Droplet(pygame.sprite.Sprite):
    
     def player_collision(self):
         if self.rect.colliderect(player.rect):
-            return self.rect
+           pulse = Pulse(player.rect.x - int(scroll[0]),player.rect.y - int(scroll[1]),[8,3,180],[25,15],True)
+           effects.add(pulse)  
+           for i in range(30):
+                droplet_particle.particles.append(Particle_System().Scatter_Effect(self.rect.x - int(scroll[0]),
+                self.rect.y - int(scroll[1]),[5,5]))
+           self.kill()     
     
     def draw(self,surface):
         surface.blit(self.image,(self.rect.x - int(scroll[0]),self.rect.y - int(scroll[1])))
@@ -281,7 +312,7 @@ droplets = pygame.sprite.Group()
 effects = pygame.sprite.Group() 
 
 location1 = [[30,183],[250, 183]]
-location2 = [[200,140],[400,140]]
+location2 = [[200,100],[400,140]]
 
 for position in location1:
     tree = Trees(position[0], position[1])
@@ -324,24 +355,17 @@ while True: # game loop
         tree.update(dt)
         tree.draw(display)
     
-    for index, droplet in enumerate(droplets):
+    for droplet in droplets:
         droplet.update(dt)
-        collected = droplet.player_collision()
+        droplet.player_collision()
         droplet.draw(display)
-        if collected != None:
-            pulse = Pulse(player.rect.x - int(scroll[0]) ,player.rect.y - int(scroll[1]),True)
-            effects.add(pulse)    
-            for i in range(10):
-                droplet_particle.particles.append(Particle_System().Scatter_Effect(collected.x - int(scroll[0]),
-                collected.y - int(scroll[1]),[5,5]))
-            droplets.remove(droplet)
     
     map.draw(display)
     player.move(player_movement,dt)
     player.draw(display)
     enemy.move(dt)
     enemy.draw(display)
-    droplet_particle.draw(display, 'default_skin.png', [0.4, 0.1, 0.5])
+    droplet_particle.draw(display, 'default_skin.png', [0.4, 0.1, 0])
     misc.draw(display)
 
     for effect in effects:

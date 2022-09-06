@@ -10,18 +10,24 @@ last_time = time.time()
 class Pulse(pygame.sprite.Sprite):
 	def __init__(self,x,y,value):
 		pygame.sprite.Sprite.__init__(self)
-		self.image = pygame.image.load(os.path.join('asset/effects', 'pulse0.png'))
+		self.image = pygame.image.load(os.path.join('asset/effects', 'pulse.png'))
 		self.image_copy = self.image
 		self.position = [x,y]
 		self.scale = [0,0]
+		self.scale_value = 15
+		self.transition = [20,2,550]
 		self.play_animation = value
 
 	def update(self,dt):
 		if self.play_animation:
-			self.scale[0] += 15 * dt
-			self.scale[1] += 15 * dt
+			if self.scale[0] < self.transition[2] - 50:
+				self.scale_value = self.transition[0]
+			else:
+				self.scale_value = self.transition[1] 
+			self.scale[0] += self.scale_value * dt
+			self.scale[1] += self.scale_value * dt
 
-		if self.scale[0] > 550:
+		if self.scale[0] > self.transition[2]:
 			self.play_animation = False
 			self.kill()
 
